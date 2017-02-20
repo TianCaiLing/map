@@ -1,0 +1,159 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>根据IP定位</title>
+<style type="text/css">
+body {
+	font-size: "14px";
+	font-weight: bold;
+	text-align: center;
+	margin:5px auto;
+}
+input[type='button'] {
+	cursor: pointer;
+	color: #fff;
+    background: #3385ff;
+    border-bottom: 1px solid #2d78f4;
+    outline: medium;
+    -webkit-appearance: none;
+    -webkit-border-radius: 0;
+    border: 0;
+	width: 55px;
+	height: 22px;
+}
+textarea {
+	width: 500px;
+	height: 150px;
+	resize: none;
+}
+iframe{
+border:none;
+margin-top:5px;
+width:80%;
+height:80px;
+}
+#lookMap{
+width: 65px;
+}
+#map{height:320px;width:79%; margin:0 auto; border:solid 1px black;}
+#queryMap{margin-left:5px; font-size:14px;}
+</style>
+<script type="text/javascript" src="jquery-1.7.2.min.js"></script>
+<!-- 我的密匙 2weTFwReX0od8Lq7Ks9B3AFfYxXiGrHj-->
+<script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=2weTFwReX0od8Lq7Ks9B3AFfYxXiGrHj"></script>
+<script type="text/javascript">
+$(function(){
+	var address=null,lng=0,lat=0;
+	$("#ipq").click(function(){
+		var url = 'http://chaxun.1616.net/s.php?type=ip&output=json&callback=?&_=' + Math.random();
+	    $.getJSON(url, function (data) {
+	        $("#ip").val(data.Ip);
+	    }); 
+	});
+    $("#query").click(function(){
+    	var reg = /^(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$/;
+		if(!reg.test($("#ip").val())){
+			alert("请输入正确的IP地址");
+			return ;
+		}
+    	$("#myFrame").attr("src","https://www.opengps.cn/Data/IP/IPLocHiAcc.ashx?ip="+$("#ip").val()+"&random="+Math.random());
+	});
+	$("#jsonPase").click(function(){
+		try{
+			var data = $.parseJSON($("#json").val());
+			if(data.success){
+				var str = "";
+				$.each(data.values, function(i, _this){
+					str += "IP【" + _this.ip + "】，定位成功！"+ "\n\n";
+					str += "经度：" + _this.lng + "\n";
+					str += "纬度：" + _this.lat + "\n";
+					str += "精确度：" +_this.radius + "米\n";
+					str += "可信度：" + _this.confidence + "\n";
+					str += "地址：" + _this.address + "\n\n";
+					str += "地址更新时间：" + _this.loc_Time + "\n";
+					$("#address").val(str);
+					address = _this.address;
+					lng = _this.lng;
+					lat = _this.lat;
+				});
+				var gc = new BMap.Geocoder();  //初始化，Geocoder类
+				gc.getLocation(new BMap.Point(lng, lat), function(rs){
+					var $addressStr = $("#address").val();
+					$addressStr += "省：" + rs.addressComponents.province + "\n";
+					$addressStr += "市：" + rs.addressComponents.city + "\n";
+					$addressStr += "区：" +rs.addressComponents.district + "\n";
+					$addressStr += "街：" + rs.addressComponents.street + "\n";
+					$("#address").val($addressStr);
+				});
+			}
+		}catch(e){
+			alert("请输入正确的解析数据！")
+		}
+	});
+	$("#lookMap").click(function(e){
+		if($("#address").val()==""){
+			alert("请先解析数据！");
+			return ;
+		}
+		// 百度地图API功能
+		var map = new BMap.Map("map");
+		//暂时先写首都北京经纬度
+		map.centerAndZoom(new BMap.Point(116.331398,39.897445),11);
+		map.enableScrollWheelZoom(true);
+		var top_left_control = new BMap.ScaleControl({anchor: BMAP_ANCHOR_TOP_LEFT});// 左上角，添加比例尺
+		var top_left_navigation = new BMap.NavigationControl();  //左上角，添加默认缩放平移控件
+		var top_right_navigation = new BMap.NavigationControl({anchor: BMAP_ANCHOR_TOP_RIGHT, type: BMAP_NAVIGATION_CONTROL_SMALL}); //右上角，仅包含平移和缩放按钮
+		// 用经纬度设置地图中心点
+		if(null!=lng&&null!=lat){
+			map.clearOverlays(); 
+			var new_point = new BMap.Point(lng,lat);
+			var marker = new BMap.Marker(new_point);  // 创建标注
+			map.addOverlay(marker);              // 将标注添加到地图中
+			map.panTo(new_point);
+			map.addControl(top_left_control);        
+			map.addControl(top_left_navigation);     
+			map.addControl(top_right_navigation);   
+		}
+		var opts = {
+			position : new BMap.Point(lng,lat),    // 指定文本标注所在的地理位置
+			offset   : new BMap.Size(30, -30)    //设置文本偏移量
+		}
+		var label = new BMap.Label("所在地址："+address, opts); // 创建文本标注对象
+		label.setStyle({
+			color : "red",
+			fontSize : "12px",
+			height : "20px",
+			lineHeight : "20px",
+			fontFamily : "微软雅黑"
+		});
+		map.addOverlay(label);
+	});
+});
+</script>
+</head>
+<body>
+
+<p>请输入IP进行查询获取json数据后手动复制至左侧text框进行解析。。。。。。原因是获取json数据的服务器未提供跨域数据请求支持！</p>
+
+IP:<input id="ip" name="ip" type="text" autocomplete="off"/>
+<input id="ipq" type="button" value="获取ip" />
+<input id="query" type="button" value="查询" />
+
+<br>
+
+<iframe id="myFrame"></iframe>
+
+<br>
+
+<textarea id="json" rows="" cols=""></textarea>
+
+<input id="jsonPase" type="button" value="解析" />
+<input id="lookMap" type="button" value="查看地图" />
+<textarea id="address" rows="" cols="" readonly="readonly"></textarea>
+
+<div id="map"></div>
+
+
+</body>
+</html>
